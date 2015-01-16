@@ -1,0 +1,298 @@
+#!/bin/bash
+#set -x
+#  SIGAMI LAMP
+#  Created by Miguel Sirvent on 1/4/15.
+#  Esto puede llegar a tener 2 variantes para servidores vivos y locales
+#  Lo único q cambia es la direccion de los sitios
+#  En local los sitios se montan desde la computadora host en /srv/mnt
+
+#TODO eliminar la funcion invalid y repetir el prompt si no es valida la opcion
+
+sigami_lamp="
+ ____ ___ ____    _    __  __ ___   _        _    __  __ ____
+/ ___|_ _/ ___|  / \  |  \/  |_ _| | |      / \  |  \/  |  _ \\
+\___ \| | |  _  / _ \ | |\/| || |  | |     / _ \ | |\/| | |_) |
+ ___) | | |_| |/ ___ \| |  | || |  | |___ / ___ \| |  | |  __/
+|____|___\____/_/   \_|_|  |_|___| |_____/_/   \_|_|  |_|_|
+"
+echo -e "$(tput setaf 2)$sigami_lamp$(tput sgr 0)"
+
+if [[ $EUID -ne 0 ]]; then
+    echo -e " Este script debe correrse como super-usuario intenta: \nsudo sigamisrv"
+    exit 1
+fi
+#funciones
+invalid(){
+    echo -e " Opcion no valida \n"
+    exit 1
+}
+#TODO allow empty or default value
+#FUNCIONAMIENTO
+# uniprompt $message $values return_variable $default_value
+# Example
+# uniprompt "Do that thing ? (yes) (no) (maybe)" "yes no maybe" ret_option "yes"
+uniprompt(){
+    while true; do
+        echo -e "$1\c"
+        read opt
+        if [ ! -z $4 ] && [ -z opt ]; then
+            opt="$4"
+        fi
+        array=($2)
+        case "${array[@]}" in  *"$opt"*) eval "$3=$opt";return 0;; esac
+        echo -e "$opt no es un valor correcto\n"
+    done
+}
+promptsn () {
+    while true; do
+        read -p "$1 " yn
+        case $yn in
+            [Ss]* ) return 0;;
+            [Nn]* ) return 1;;
+            * ) echo "Selecciona (s) o (n).";;
+        esac
+    done
+}
+
+#constantes para la instalacion
+folder="/var/sigami"
+config="/var/sigami/server.conf"
+
+#crear o cargar archivo de configuracion
+if [ -e $config ]; then
+    source $config
+else
+    uniprompt "Esta es una instalacion (d) desarrollo o (l) live: " "d l" inst_type
+    mkdir -p $folder
+    if [ $inst_type = "l" ]; then
+        mkdir -p /srv/sites
+    else
+        mkdir -p /srv/mnt
+    fi
+
+    chown -R www-data:www-data /srv
+    echo "inst_type=\"$inst_type\"" > $config
+    echo "mysql_root_pass=\"\"" >> $config
+    if [ $inst_type = "d" ]; then
+        read -p "local user : " local_user
+        read -p "local ip : " local_ip
+        read -p "local folder : " local_folder
+        echo "local_user=\"$local_user\"" >> $config
+        echo "local_ip=\"$local_ip\"" >> $config
+        echo "local_folder=\"$local_folder\"" >> $config
+    fi
+
+fi
+
+#Menu principal
+uniprompt "[ENTER]->Manejar Servidor \n (s)->Manejar sitios \n : \c" "s e" handle "e"
+if [ -z $handle ]; then
+    if [ $inst_type = "d" ]; then
+        uniprompt "¿ Montar local en /srv/mnt ? \n(m) -> montar \n(d) -> desmontar \n(n) -> nada \n : "  "m d n" local_mount
+        if [ $local_mount = "m" ]; then
+            sshfs $local_user@$local_ip:$local_folder /srv/mnt -o allow_other -o nonempty
+            exit 1
+        else
+            if [ $local_mount = "d" ]; then
+                service apache2 stop
+                service php5-fpm stop
+                fusermount -u /srv/mnt
+                service apache2 start
+                service php5-fpm start
+                exit 1
+            fi
+        fi
+        if promptsn "Instalar o Reinstalar (s)/(n) "; then
+            action="i"
+        else
+            exit 1
+        fi
+    fi
+else
+    uniprompt "(c)->Crear Sitio \n(b)->Borrar Sitio \n : " "c b" action
+fi
+
+
+install(){
+    add-apt-repository --remove ppa:ondrej/php5-5.6 -y
+    add-apt-repository --remove ppa:ondrej/apache2 -y
+    apt-add-repository ppa:ondrej/php5-5.6 -y
+    apt-add-repository ppa:ondrej/apache2 -y # creo esto no es necesario ya no se nada
+    apt-get update
+    apt-get --yes --force-yes install php5-common php5-mysqlnd php5-xmlrpc php5-curl php5-gd php5-cli php5-fpm php-pear php5-dev php5-imap php5-mcrypt mysql-server apache2-mpm-worker
+    if [ $inst_type = "d" ]; then
+        apt-get --yes --force-yes install sshfs
+        echo -e "user_allow_other" >> /etc/fuse.conf
+    fi
+    conf_file="/etc/apache2/conf-available/sigami.conf"
+    if [ $inst_type = "l" ]; then
+        echo -e "<Directory \"/srv/sites/*/htdocs\">" > $conf_file
+    else
+        echo -e "<Directory \"/srv/mnt\">" > $conf_file
+    fi
+    echo -e "\tOptions +SymLinksIfOwnerMatch" >> $conf_file
+    echo -e "\tAllowOverride AuthConfig FileInfo Indexes Limit Options=Indexes,MultiViews" >> $conf_file
+    echo -e "\tRequire all granted" >> $conf_file
+    echo -e "</Directory>" >> $conf_file
+    echo -e "<FilesMatch \.php$>" >> $conf_file
+    echo -e "\tSetHandler \"proxy:unix:/var/run/php5-fpm.sock|fcgi://localhost\"" >> $conf_file
+    echo -e "</FilesMatch>" >> $conf_file
+    a2enconf sigami
+    a2enmod proxy_fcgi rewrite
+    service apache2 restart
+    echo -e " Instalando WordPress Command Line Interface \n"
+    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+    chmod +x wp-cli.phar
+    mv wp-cli.phar /usr/local/bin/wp
+    echo -e " Cambiando permisos del usuario www-data \n"
+    sed -i -e 's/www-data:\/var\/www:\/usr\/sbin\/nologin/www-data:\/srv:\/bin\/bash/g' /etc/passwd
+    echo -e " Todo instalado \n"
+    if promptsn "Guardar contraseña de mysql (no recomendado para live) (s) (n) : "; then
+        echo -e " Contraseña: \c "
+        read -s root_pass
+        sed -i -e 's/mysql_root_pass=\"\"//g' $config
+        echo "mysql_root_pass=\"$root_pass\"" >> $config
+    fi
+    echo -e " Todo listo \n"
+    exit 1
+}
+
+new_site(){
+    echo -e " Escribe el nuevo dominio sin www \c";
+    read nuevo_sitio
+    if promptsn "LLeva www al inicio (s)/(n) "; then
+        has_www="s"
+    else
+        has_www="n"
+    fi
+    if promptsn "Instalar wordpress y base de datos ? (s)/(n) "; then
+        inst_wp="s"
+        uniprompt "Lenguaje de Wordpress \n  (a)->en_US \n  (b)->es_ES \n : " "a b" locale
+        if [ $locale = "a" ]; then
+            wp_locale="en_US"
+        else
+            wp_locale="es_ES"
+        fi
+    else
+        inst_wp="n"
+    fi
+    brach=""
+    if [ $inst_type = "l" ]; then
+        pre_site_root="/srv/sites/$nuevo_sitio"
+        site_root="/srv/sites/$nuevo_sitio/htdocs"
+        mkdir -p $site_root
+        chown -R www-data:www-data $site_root
+    else
+        read -p "Sub Carpeta o grupo enter para ninguno " sub_folder
+        if [ ! -z $sub_folder ]; then
+            s_folder="$sub_folder/"
+        else
+            s_folder=""
+        fi
+        echo -e " ¿ Qué rama es ? ( live | dev | prod | test ) \n : \c"
+        read branch
+        pre_site_root="/srv/mnt/$s_folder$nuevo_sitio"
+        site_root="/srv/mnt/$s_folder$nuevo_sitio/$branch"
+        mkdir -p $site_root
+    fi
+    if [ -z $branch ]; then
+        prefix=""
+        db_prefix="live_"
+    else
+        prefix="$branch."
+        db_prefix="$branch_"
+        clean_tld=${nuevo_sitio//[.]/_}
+    fi
+    db_name="$db_prefix$clean_tld"
+    #instalando wp
+    if [ $inst_wp = "s" ]; then
+        sudo -u www-data -i -- wp core download --path=$site_root --locale=$wp_locale
+        pass=`date +%s | sha256sum | base64 | head -c 12`
+        wp_prefix="$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 3 | head -n 1)_"
+        if [ -z $mysql_root_pass ]; then
+            echo -e " Constraseña de Mysql"
+        fi
+        mysql -u root -p$mysql_root_pass -Bse "CREATE DATABASE $db_name; CREATE USER '$db_name'@'localhost' IDENTIFIED BY '$pass'; GRANT ALL PRIVILEGES ON $db_name.* TO '$db_name'@'localhost';"
+        cd $site_root
+        wp core config --allow-root --dbname=$db_name --dbuser=$db_name --dbpass=$pass --dbprefix=$wp_prefix --locale=$wp_locale
+    else
+        if promptsn "Crear Base de Datos en Blanco (s)/(n) "; then
+            read -p "Nombre ($db_name):" new_db
+            if [ -z $new_db ]; then
+                new_db_name=$db_name
+            else
+                new_db_name=$new_db
+            fi
+            mysql -u root -p$mysql_root_pass -Bse "CREATE DATABASE $new_db_name;"
+        fi
+    fi
+    site_conf="/etc/apache2/sites-available/$prefix$nuevo_sitio.conf"
+    echo "<VirtualHost *:80>" > $site_conf
+    if [ has_www = "s" ]; then
+        echo -e "\tServerName www.$nuevo_sitio" >> $site_conf
+        echo -e "\tServerAlias $nuevo_sitio" >> $site_conf
+    else
+        echo -e "\tServerName $nuevo_sitio" >> $site_conf
+    fi
+    echo -e "\tServerAdmin miguel@sigami.net" >> $site_conf
+    echo -e "\tDocumentRoot $site_root" >> $site_conf
+    if [ $inst_type = "l" ]; then
+        echo -e "\tErrorLog $pre_site_root/error.log" >> $site_conf
+        echo -e "\tCustomLog $pre_site_root/access.log combined" >> $site_conf
+        echo -e "\tCustomLog \${APACHE_LOG_DIR}/access.log combined" >> $site_conf
+    else
+        echo -e "\tErrorLog \${APACHE_LOG_DIR}/error.log" >> $site_conf
+        echo -e "\tCustomLog \${APACHE_LOG_DIR}/access.log combined" >> $site_conf
+    fi
+
+    echo "</VirtualHost>" >> $site_conf
+    a2ensite $prefix$nuevo_sitio
+    service apache2 reload
+}
+
+del_site(){
+    cd /etc/apache2/sites-available
+    ARRAY=(*)
+    ELEMENTS=${#ARRAY[@]}
+    echo -e "Que sitio deseas borrar : \n"
+    for (( i=0;i<$ELEMENTS;i++)); do
+        echo " ($i)->${ARRAY[${i}]}" | sed -r 's/.conf/ /g'
+    done
+    echo -e " : \c"
+    read site
+    conf_to_del=${ARRAY[${site}]}
+    doc_root=`awk '$1~/^DocumentRoot/{print $2}' $conf_to_del`
+    uniprompt " (a)-> Borrar Apache \n (b)-> Borrar Apache + Archivos \n (c)-> Borrar Apache + Archivos + DB (solo wp) \n : "  "a b c" del_action
+    if [ $del_action = "a" ]; then
+        a2dissite ${conf_to_del//.conf/ }
+        rm $conf_to_del
+    fi
+    if [ $del_action = "b" ]; then
+        a2dissite ${conf_to_del//.conf/ }
+        rm $conf_to_del
+        rm -r $doc_root
+    fi
+    if [ $del_action = "c" ]; then
+        a2dissite ${conf_to_del//.conf/ }
+        rm $conf_to_del
+        cd $doc_root
+        cp wp-config.php wp-config-tmp.php
+        sed -i -e "s/require_once(ABSPATH . 'wp-settings.php');/ /g" wp-config-tmp.php
+        db_name=`php -r 'require_once("wp-config-tmp.php"); echo DB_NAME;'`
+        db_pass=`php -r 'require_once("wp-config-tmp.php"); echo DB_PASSWORD;'`
+        if [ $mysql_root_pass = "" ]; then
+            echo -e " Constraseña de Mysql"
+        fi
+        mysql -u root -p$mysql_root_pass -Bse "DROP DATABASE $db_name; DROP USER '$db_name'@'localhost';"
+        cd /srv
+        rm -r $doc_root
+    fi
+    service apache2 reload;
+}
+
+case $action in
+    (i) install;;
+    (c) new_site;;
+    (b) del_site;;
+    (*) invalid;;
+esac
