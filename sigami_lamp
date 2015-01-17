@@ -18,7 +18,7 @@ sigami_lamp="
 echo -e "$(tput setaf 2)$sigami_lamp$(tput sgr 0)"
 
 if [[ $EUID -ne 0 ]]; then
-    echo -e " Este script debe correrse como super-usuario intenta: \nsudo sigamisrv"
+    echo -e " Este script debe correrse como super-usuario intenta: \nsudo sigami_lamp"
     exit 1
 fi
 #funciones
@@ -183,6 +183,7 @@ new_site(){
         mkdir -p $site_root
         chown -R www-data:www-data $site_root
     else
+        echo -e "Este es un servidor local \n"
         read -p "Sub Carpeta o grupo enter para ninguno " sub_folder
         if [ ! -z $sub_folder ]; then
             s_folder="$sub_folder/"
