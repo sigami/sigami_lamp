@@ -62,11 +62,17 @@ else
 
     chown -R www-data:www-data /srv
     echo "inst_type=\"$inst_type\"" > $config
+    #TODO validar no vacio   
+    read -p "Server admin email : " server_admin 
+    echo "server_admin=\"$server_admin\"" >> $config   
     echo "mysql_root_pass=\"\"" >> $config
     if [ $inst_type = "d" ]; then
-        read -p "local user : " local_user
-        read -p "local ip : " local_ip
-        read -p "local folder : " local_folder
+        read -p "Usuario ssh del Anfitrión : " local_user
+        read -p "IP del Anfitrión : " local_ip
+        echo -e "Folder de tus sitios en anfitrión \n"
+        echo -e "ej. Windows C://Users//usuario//sitios//  \n"
+        echo -e "ej. OSX o unix /Users/usuario/sitios/  \n"
+        read -p "Folder : " local_folder
         echo "local_user=\"$local_user\"" >> $config
         echo "local_ip=\"$local_ip\"" >> $config
         echo "local_folder=\"$local_folder\"" >> $config
@@ -223,7 +229,7 @@ new_site(){
     else
         echo -e "\tServerName $nuevo_sitio" >> $site_conf
     fi
-    echo -e "\tServerAdmin miguel@sigami.net" >> $site_conf
+    echo -e "\tServerAdmin $server_admin" >> $site_conf
     echo -e "\tDocumentRoot $site_root" >> $site_conf
     if [ $inst_type = "l" ]; then
         echo -e "\tErrorLog $pre_site_root/error.log" >> $site_conf
