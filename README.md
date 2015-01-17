@@ -1,31 +1,33 @@
 # SIGAMI LAMP
+Es un software que permite al usuario instalar fácilmente los programas necesarios para correr un servidor Web en una Máquina Virtual o en un Servidor Privado Virtual (VPS).
 
-This bash script will add the ondrej repositories for Apache and PHP5.6 then perform a full install.
+## Requerimientos
+### En el Anfitrión
+* VirtualBox o Parecido
+* Openssh-Server
 
-Will also create an apache configration sigami.conf which contains all necesary data for php5-fpm to work.
+     Si es Windows Cygwin o parecido. 
+     
+     En Ubuntu o parecido `apt-get install openssh-server`
 
-And creates and mantains php sites with or without wordpress.
+### En máquina virtual o VPS
+* Ubuntu Server 14.04
+* sigami_lamp
 
-The entire script is in spanish and it is not intended to be translated.
+### Instalación
+`sudo curl -0 https://raw.githubusercontent.com/sigami/sigami_lamp/master/sigami_lamp >> /usr/local/bin/sigami_lamp && chmod +x sigami_lamp`
 
-Funcionamiento
+`sudo sigami_lamp`
 
-Descarga el archivo sigami_lamp, cambia sus permisos y copialo.
+A partir de este momento se te preguntará que hacer, exiten varias diferencias entre un servidor local y uno en vivo los cuales puedes ver aqui: porximamente....
 
-chmod +x sigami_lamp
-sudo cp sigami_lamp /usr/local/bin/
+## Software que Instala
+- Apache. 2.4.10  
+- PHP 5.6.4
+- MySQL 5.5.40
+- WP-CLI latest
+- /etc/apache2/conf-available/sigami.conf
 
-Instalar Apache PHP5.6 y MySQL
-
-En la Terminal del servidor
-
-sudo sigami_lamp [enter]
-
-En la primera ejecución preguntará que tipo de instalación es la que estas ejecutando, lo que cambia es la estuctura de las carpetas en donde van a estar almacenadas las páginas por ejemplo:
-
-En un servidor vivo, las carpetas estarán /srv/sites en un servidor local las buscará en /srv/mnt .
-
-La idéa de un servidor local es que tengas una maquina virtual funcionando como tal, con ubuntu server instalado, de esta manera podrás montar las carptas de tu computadora en tu servidor local y trabajar facilmente en tus archivos
-
-Hay mucha más documentación que se puede hacer acerca de estas poderosas líneas de código pero por el momento esto será suficiente.
+TODO
+phpmyadmin, ajenti, postfix, vma, roudcube, ssl para cada una de ellas auto firmado o no
 
