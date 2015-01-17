@@ -43,16 +43,6 @@ uniprompt(){
         echo -e "$opt no es un valor correcto\n"
     done
 }
-promptsn () {
-    while true; do
-        read -p "$1 " yn
-        case $yn in
-            [Ss]* ) return 0;;
-            [Nn]* ) return 1;;
-            * ) echo "Selecciona (s) o (n).";;
-        esac
-    done
-}
 
 #constantes para la instalacion
 folder="/var/sigami"
@@ -102,7 +92,8 @@ if [ -z $handle ]; then
                 exit 1
             fi
         fi
-        if promptsn "Instalar o Reinstalar (s)/(n) "; then
+        uniprompt "Instalar o Reinstalar (s)/(n) " "s n" w_action
+        if [ $w_action = "s" ]; then
             action="i"
         else
             exit 1
@@ -147,7 +138,8 @@ install(){
     echo -e " Cambiando permisos del usuario www-data \n"
     sed -i -e 's/www-data:\/var\/www:\/usr\/sbin\/nologin/www-data:\/srv:\/bin\/bash/g' /etc/passwd
     echo -e " Todo instalado \n"
-    if promptsn "Guardar contraseña de mysql (no recomendado para live) (s) (n) : "; then
+    uniprompt "Guardar contraseña de mysql (no recomendado para live) (s) (n) : " "s n" save_sql
+    if [ $save_sql = "s" ]; then
         echo -e " Contraseña: \c "
         read -s root_pass
         sed -i -e 's/mysql_root_pass=\"\"//g' $config
@@ -160,13 +152,10 @@ install(){
 new_site(){
     echo -e " Escribe el nuevo dominio sin www \c";
     read nuevo_sitio
-    if promptsn "LLeva www al inicio (s)/(n) "; then
-        has_www="s"
-    else
-        has_www="n"
-    fi
-    if promptsn "Instalar wordpress y base de datos ? (s)/(n) "; then
-        inst_wp="s"
+    uniprompt "¿ LLeva www al inicio s/n ?" "s n" has_www
+    uniprompt "¿ Instalar wordpress y base de datos ? s/n ?" inst_wp
+    wp_locale="en_US"
+    if [ $inst_wp = "s" ]; then
         uniprompt "Lenguaje de Wordpress \n  (a)->en_US \n  (b)->es_ES \n : " "a b" locale
         if [ $locale = "a" ]; then
             wp_locale="en_US"
@@ -198,10 +187,10 @@ new_site(){
     fi
     if [ -z $branch ]; then
         prefix=""
-        db_prefix="live_"
+        db_prefix="live-"
     else
         prefix="$branch."
-        db_prefix="$branch_"
+        db_prefix="$branch-"
         clean_tld=${nuevo_sitio//[.]/_}
     fi
     db_name="$db_prefix$clean_tld"
@@ -217,7 +206,8 @@ new_site(){
         cd $site_root
         wp core config --allow-root --dbname=$db_name --dbuser=$db_name --dbpass=$pass --dbprefix=$wp_prefix --locale=$wp_locale
     else
-        if promptsn "Crear Base de Datos en Blanco (s)/(n) "; then
+        uniprompt "¿ Crear Base de Datos en Blanco s/n ?" blank_db
+        if [ $blank_db = "s" ]; then
             read -p "Nombre ($db_name):" new_db
             if [ -z $new_db ]; then
                 new_db_name=$db_name
@@ -265,28 +255,43 @@ del_site(){
     doc_root=`awk '$1~/^DocumentRoot/{print $2}' $conf_to_del`
     uniprompt " (a)-> Borrar Apache \n (b)-> Borrar Apache + Archivos \n (c)-> Borrar Apache + Archivos + DB (solo wp) \n : "  "a b c" del_action
     if [ $del_action = "a" ]; then
-        a2dissite ${conf_to_del//.conf/ }
-        rm $conf_to_del
+        uniprompt "¿ Estas 100% seguro de Borrar el Config de apache ${conf_to_del//.conf/} ? s/n " "s n" confirm
+        if [ $confirm = "s" ]; then
+            a2dissite ${conf_to_del//.conf/ }
+            rm $conf_to_del
+        else
+            exit 1
+        fi
     fi
     if [ $del_action = "b" ]; then
-        a2dissite ${conf_to_del//.conf/ }
-        rm $conf_to_del
-        rm -r $doc_root
+        uniprompt "¿ Estas 100% seguro de Borrar el Config y los archivos de $conf_to_del ? s/n " "s n" confirm
+        if [ $confirm = "s" ]; then
+            a2dissite ${conf_to_del//.conf/ }
+            rm $conf_to_del
+            rm -r $doc_root
+        else
+            exit 1
+        fi        
     fi
     if [ $del_action = "c" ]; then
-        a2dissite ${conf_to_del//.conf/ }
-        rm $conf_to_del
-        cd $doc_root
-        cp wp-config.php wp-config-tmp.php
-        sed -i -e "s/require_once(ABSPATH . 'wp-settings.php');/ /g" wp-config-tmp.php
-        db_name=`php -r 'require_once("wp-config-tmp.php"); echo DB_NAME;'`
-        db_pass=`php -r 'require_once("wp-config-tmp.php"); echo DB_PASSWORD;'`
-        if [ $mysql_root_pass = "" ]; then
-            echo -e " Constraseña de Mysql"
-        fi
-        mysql -u root -p$mysql_root_pass -Bse "DROP DATABASE $db_name; DROP USER '$db_name'@'localhost';"
-        cd /srv
-        rm -r $doc_root
+        uniprompt "¿ Estas 100% seguro de Borrar el Config, los Archivos y la Base de Datos de $conf_to_del ? s/n " "s n" confirm
+        if [ $confirm = "s" ]; then
+            a2dissite ${conf_to_del//.conf/ }
+            rm $conf_to_del
+            cd $doc_root
+            cp wp-config.php wp-config-tmp.php
+            sed -i -e "s/require_once(ABSPATH . 'wp-settings.php');/ /g" wp-config-tmp.php
+            db_name=`php -r 'require_once("wp-config-tmp.php"); echo DB_NAME;'`
+            db_pass=`php -r 'require_once("wp-config-tmp.php"); echo DB_PASSWORD;'`
+            if [ $mysql_root_pass = "" ]; then
+                echo -e " Constraseña de Mysql"
+            fi
+            mysql -u root -p$mysql_root_pass -Bse "DROP DATABASE $db_name; DROP USER '$db_name'@'localhost';"
+            cd /srv
+            rm -r $doc_root
+        else
+            exit 1
+        fi          
     fi
     service apache2 reload;
 }
