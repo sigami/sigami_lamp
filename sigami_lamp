@@ -28,7 +28,7 @@ invalid(){
 }
 #TODO allow empty or default value
 #FUNCIONAMIENTO
-# uniprompt $message $values return_variable $default_value
+# uniprompt message values return_variable default_value
 # Example
 # uniprompt "Do that thing ? (yes) (no) (maybe)" "yes no maybe" ret_option "yes"
 uniprompt(){
@@ -113,7 +113,7 @@ install(){
     apt-get --yes --force-yes install php5-common php5-mysqlnd php5-xmlrpc php5-curl php5-gd php5-cli php5-fpm php-pear php5-dev php5-imap php5-mcrypt mysql-server apache2-mpm-worker
     if [ $inst_type = "d" ]; then
         apt-get --yes --force-yes install sshfs
-        echo -e "user_allow_other" >> /etc/fuse.conf
+        #echo -e "user_allow_other" >> /etc/fuse.conf
     fi
     conf_file="/etc/apache2/conf-available/sigami.conf"
     if [ $inst_type = "l" ]; then
@@ -152,8 +152,8 @@ install(){
 new_site(){
     echo -e " Escribe el nuevo dominio sin www \c";
     read nuevo_sitio
-    uniprompt "¿ LLeva www al inicio s/n ?" "s n" has_www
-    uniprompt "¿ Instalar wordpress y base de datos ? s/n ?" inst_wp
+    uniprompt "¿ LLeva www al inicio s/n ? " "s n" has_www
+    uniprompt "¿ Instalar wordpress y base de datos s/n ? " "s n" inst_wp
     wp_locale="en_US"
     if [ $inst_wp = "s" ]; then
         uniprompt "Lenguaje de Wordpress \n  (a)->en_US \n  (b)->es_ES \n : " "a b" locale
@@ -162,8 +162,6 @@ new_site(){
         else
             wp_locale="es_ES"
         fi
-    else
-        inst_wp="n"
     fi
     brach=""
     if [ $inst_type = "l" ]; then
@@ -190,10 +188,10 @@ new_site(){
         db_prefix="live-"
     else
         prefix="$branch."
-        db_prefix="$branch-"
-        clean_tld=${nuevo_sitio//[.]/_}
+        db_prefix="_$branch"
+        clean_tld=${nuevo_sitio//[.]/}
     fi
-    db_name="$db_prefix$clean_tld"
+    db_name="$clean_tld$db_prefix"
     #instalando wp
     if [ $inst_wp = "s" ]; then
         sudo -u www-data -i -- wp core download --path=$site_root --locale=$wp_locale
@@ -206,7 +204,7 @@ new_site(){
         cd $site_root
         wp core config --allow-root --dbname=$db_name --dbuser=$db_name --dbpass=$pass --dbprefix=$wp_prefix --locale=$wp_locale
     else
-        uniprompt "¿ Crear Base de Datos en Blanco s/n ?" blank_db
+        uniprompt "¿ Crear Base de Datos en Blanco s/n ? " "s n" blank_db
         if [ $blank_db = "s" ]; then
             read -p "Nombre ($db_name):" new_db
             if [ -z $new_db ]; then
