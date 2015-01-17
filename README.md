@@ -1,5 +1,15 @@
 # SIGAMI LAMP
-Es un software que permite al usuario instalar fácilmente los programas necesarios para correr un servidor Web en una Máquina Virtual o en un Servidor Privado Virtual (VPS).
+Instala automáticamente los programas necesarios para correr un servidor Web en una Máquina Virtual o en un Servidor Privado Virtual (VPS).
+
+Crea o Destruye sitios con sus respectivos archivos de configuración
+
+Instala WordPress Instantaneamente
+## Software que Instala
+- Apache. 2.4.10  
+- PHP 5.6.4
+- MySQL 5.5.40
+- WP-CLI latest
+- /etc/apache2/conf-available/sigami.conf
 
 ## Requerimientos
 ### En el Anfitrión
@@ -20,13 +30,6 @@ Es un software que permite al usuario instalar fácilmente los programas necesar
 `sudo sigami_lamp`
 
 A partir de este momento se te preguntará que hacer, exiten varias diferencias entre un servidor local y uno en vivo los cuales puedes ver aqui: porximamente....
-
-## Software que Instala
-- Apache. 2.4.10  
-- PHP 5.6.4
-- MySQL 5.5.40
-- WP-CLI latest
-- /etc/apache2/conf-available/sigami.conf
 
 TODO
 phpmyadmin, ajenti, postfix, vma, roudcube, ssl para cada una de ellas auto firmado o no
