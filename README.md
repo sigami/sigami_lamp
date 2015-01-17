@@ -25,7 +25,7 @@ Instala WordPress Instantaneamente
 * sigami_lamp
 
 ### Instalación
-`sudo curl -0 https://raw.githubusercontent.com/sigami/sigami_lamp/master/sigami_lamp >> /usr/local/bin/sigami_lamp && chmod +x sigami_lamp`
+`sudo curl -0 https://raw.githubusercontent.com/sigami/sigami_lamp/master/sigami_lamp >> /usr/local/bin/sigami_lamp && chmod +x /usr/local/bin/sigami_lamp`
 
 `sudo sigami_lamp`
 
