@@ -32,6 +32,7 @@ Instala WordPress Instantaneamente
 A partir de este momento se te preguntará que hacer, exiten varias diferencias entre un servidor local y uno en vivo los cuales puedes ver aqui: porximamente....
 
 TODO
+solicitar la ip fija del servidor local y actualizarla en /etc/mysql/my.cnf , crear usuario universal.
 gosaccess, phpmyadmin, ajenti, postfix, vma, roudcube, ssl para cada una de ellas auto firmado o no
 //apt-get install libncursesw5-dev libglib2.0-dev libgeoip-dev libtokyocabinet-dev
 
