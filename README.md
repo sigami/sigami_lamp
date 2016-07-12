@@ -1,38 +1,16 @@
 # SIGAMI LAMP
-Instala automáticamente los programas necesarios para correr un servidor Web en una Máquina Virtual o en un Servidor Privado Virtual (VPS).
 
-Crea o Destruye sitios con sus respectivos archivos de configuración
+## This project has been deprecated in favor of vagrant.
 
-Instala WordPress Instantaneamente
-## Software que Instala
 - Apache. 2.4.10  
 - PHP 5.6.4
 - MySQL 5.5.40
 - WP-CLI latest
 - /etc/apache2/conf-available/sigami.conf
 
-## Requerimientos
-### En el Anfitrión
-* VirtualBox o Parecido
-* Openssh-Server
-
-     Si es Windows Cygwin o parecido. 
-     
-     En Ubuntu o parecido `apt-get install openssh-server`
-
-### En máquina virtual o VPS
-* Ubuntu Server 14.04
-* sigami_lamp
-
-### Instalación
 `sudo curl -0 https://raw.githubusercontent.com/sigami/sigami_lamp/master/sigami_lamp >> /usr/local/bin/sigami_lamp && chmod +x /usr/local/bin/sigami_lamp`
 
 `sudo sigami_lamp`
 
-A partir de este momento se te preguntará que hacer, exiten varias diferencias entre un servidor local y uno en vivo los cuales puedes ver aqui: porximamente....
 
-TODO
-solicitar la ip fija del servidor local y actualizarla en /etc/mysql/my.cnf , crear usuario universal.
-gosaccess, phpmyadmin, ajenti, postfix, vma, roudcube, ssl para cada una de ellas auto firmado o no
-//apt-get install libncursesw5-dev libglib2.0-dev libgeoip-dev libtokyocabinet-dev
 
